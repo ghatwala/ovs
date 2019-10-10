@@ -1,10 +1,4 @@
 language: c
-compiler:
-  - gcc
-  - clang
-
-os:
-  - linux
 
 cache:
   directories:
@@ -26,6 +20,7 @@ addons:
       - libunwind-dev
       - python-pip
       - python-setuptools
+      - autoconf
 
 before_install: ./.travis/${TRAVIS_OS_NAME}-prepare.sh
 
