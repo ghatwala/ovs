@@ -27,6 +27,7 @@ addons:
       - python-pip
       - python-setuptools
       - libtool
+      - gcc-7
 
 before_install: ./.travis/${TRAVIS_OS_NAME}-prepare.sh
 
@@ -42,10 +43,6 @@ matrix:
       arch: arm64
       compiler: gcc
       env: KERNEL_LIST="4.15 4.14 4.9  4.4  3.19 3.16"
-      addons:
-        apt:
-        packages:
-          - gcc-7
     - os: linux
       arch: arm64
       compiler: gcc
