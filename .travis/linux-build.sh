@@ -6,8 +6,8 @@ set -x
 CFLAGS_FOR_OVS="-g -O2"
 SPARSE_FLAGS=""
 EXTRA_OPTS="--enable-Werror"
-TARGET="x86_64-native-linuxapp-gcc"
-
+#TARGET="x86_64-native-linuxapp-gcc"
+TARGET="arm64-armv8a-linuxapp-gcc"
 function install_kernel()
 {
     if [[ "$1" =~ ^5.* ]]; then
