@@ -37,7 +37,11 @@ matrix:
     - os: linux
       arch: arm64
       compiler: gcc
-      env: OPTS="--enable-shared"
+      env: KERNEL="3.19"
+    - os: linux
+      arch: amd64
+      compiler: gcc
+      env: KERNEL="3.19"
 
 script: ./.travis/${TRAVIS_OS_NAME}-build.sh $OPTS
 
