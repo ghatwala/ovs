@@ -1,5 +1,11 @@
 language: c
 
+compiler: 
+    - gcc
+
+os:
+    - linux
+
 cache:
   directories:
     - dpdk-dir
