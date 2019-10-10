@@ -37,16 +37,23 @@ matrix:
     - os: linux
       arch: arm64
       compiler: gcc
+      env: DISABLE_SPARSE="true" OPTS="--disable-ssl"
+    - os: linux
+      arch: arm64
+      compiler: gcc
       env: DISABLE_SPARSE="true" OPTS="--enable-shared"
     - os: linux
       arch: arm64
       compiler: gcc
-      env: KERNEL="3.19"
+      env: TESTSUITE=1 OPTS="--enable-shared"
     - os: linux
-      arch: amd64
+      arch: arm64
       compiler: gcc
-      env: KERNEL="3.19"
-
+      env: TESTSUITE=1 LIBS=-ljemalloc
+    - os: linux
+      arch: arm64
+      compiler: gcc
+      env: TESTSUITE=1 KERNEL=3.16
 script: ./.travis/${TRAVIS_OS_NAME}-build.sh $OPTS
 
 notifications:
