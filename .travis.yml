@@ -37,6 +37,10 @@ matrix:
     - os: linux
       arch: arm64
       compiler: gcc
+      env: DISABLE_SPARSE="true" OPTS="--enable-shared"
+    - os: linux
+      arch: arm64
+      compiler: gcc
       env: KERNEL="3.19"
     - os: linux
       arch: amd64

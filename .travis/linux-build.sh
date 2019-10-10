@@ -5,7 +5,7 @@ set -x
 
 CFLAGS_FOR_OVS="-g -O2"
 SPARSE_FLAGS=""
-EXTRA_OPTS="--enable-Werror"
+#EXTRA_OPTS="--enable-Werror"
 #TARGET="x86_64-native-linuxapp-gcc"
 TARGET="arm64-armv8a-linuxapp-gcc"
 function install_kernel()
@@ -136,6 +136,10 @@ function build_ovs()
         make -j4 || { cat config.log; exit 1; }
     fi
 }
+
+if [ -z "$DISABLE_SPARSE" ]; then
+    EXTRA_OPTS="$EXTRA_OPTS --enable-Werror"
+fi
 
 if [ "$KERNEL" ]; then
     install_kernel $KERNEL
