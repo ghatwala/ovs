@@ -5,9 +5,11 @@ set -x
 
 CFLAGS_FOR_OVS="-g -O2"
 SPARSE_FLAGS=""
+EXTRA_OPTS=""
 #EXTRA_OPTS="--enable-Werror"
 #TARGET="x86_64-native-linuxapp-gcc"
 TARGET="arm64-armv8a-linuxapp-gcc"
+
 function install_kernel()
 {
     if [[ "$1" =~ ^5.* ]]; then
@@ -69,7 +71,7 @@ function install_dpdk()
 {
     local DPDK_VER=$1
     local VERSION_FILE="dpdk-dir/travis-dpdk-cache-version"
-
+    
     if [ "${DPDK_VER##refs/*/}" != "${DPDK_VER}" ]; then
         # Avoid using cache for git tree build.
         rm -rf dpdk-dir
@@ -137,15 +139,15 @@ function build_ovs()
     fi
 }
 
-if [ -z "$DISABLE_SPARSE" ]; then
-    EXTRA_OPTS="$EXTRA_OPTS --enable-Werror"
-fi
-
 if [ "$KERNEL" ]; then
     install_kernel $KERNEL
 fi
 
 if [ "$DPDK" ] || [ "$DPDK_SHARED" ]; then
+    #PLATFORM_FLAG=`uname -a|grep -q aarch64 || uanme -a|grep arm echo $?`
+    #if [ "$PLATFORM_FLAG" -eq 0 ]; then
+    #    DISABLE_WERROR="true"
+    #fi
     if [ -z "$DPDK_VER" ]; then
         DPDK_VER="18.11.2"
     fi
@@ -156,6 +158,10 @@ if [ "$DPDK" ] || [ "$DPDK_SHARED" ]; then
     fi
 fi
 
+if [ ! "$DISABLE_WERROR" ]; then
+    EXTRA_OPTS="$EXTRA_OPTS --enable-Werror"
+fi
+
 if [ "$CC" = "clang" ]; then
     CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} -Wno-error=unused-command-line-argument"
 elif [ "$M32" ]; then
@@ -164,8 +170,12 @@ elif [ "$M32" ]; then
     # difference on 'configure' and 'make' stages.
     export CC="$CC -m32"
 else
-    OPTS="--enable-sparse"
-    CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} ${SPARSE_FLAGS}"
+    # Disable sparse static code checker temporarily for test cases on
+    # arm
+    if [ ! "$DISABLE_SPARSE" ]; then
+        OPTS="--enable-sparse"
+        CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} ${SPARSE_FLAGS}"
+    fi
 fi
 
 save_OPTS="${OPTS} $*"
