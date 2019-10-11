@@ -26,6 +26,7 @@ addons:
       - libunwind-dev
       - python-pip
       - python-setuptools
+      - wheel
       - libtool
 
 before_install: ./.travis/${TRAVIS_OS_NAME}-prepare.sh
@@ -45,15 +46,15 @@ matrix:
     - os: linux
       arch: arm64
       compiler: gcc
-      env: TESTSUITE=1 OPTS="--enable-shared"
+      env: DISABLE_SPARSE="true" TESTSUITE=1 OPTS="--enable-shared"
     - os: linux
       arch: arm64
       compiler: gcc
-      env: TESTSUITE=1 LIBS=-ljemalloc
+      env: DISABLE_SPARSE="true" TESTSUITE=1 LIBS=-ljemalloc
     - os: linux
       arch: arm64
       compiler: gcc
-      env: TESTSUITE=1 KERNEL=3.16
+      env: DISABLE_SPARSE="true" TESTSUITE=1 KERNEL=3.16
 script: ./.travis/${TRAVIS_OS_NAME}-build.sh $OPTS
 
 notifications:
