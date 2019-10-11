@@ -24,6 +24,7 @@ addons:
       - selinux-policy-dev
       - libunbound-dev
       - libunwind-dev
+      - python-dev
       - python-pip
       - python-setuptools
       - libtool
