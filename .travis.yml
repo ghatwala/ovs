@@ -3,6 +3,8 @@ language: c
 compiler: 
     - gcc
 
+arch: arm64
+
 os:
     - linux
 
@@ -36,12 +38,18 @@ before_install: ./.travis/${TRAVIS_OS_NAME}-prepare.sh
 
 before_script: export PATH=$PATH:$HOME/bin
 
+env:
+   - DISABLE_SPARSE=1 DPDK=1 OPTS="--enable-shared"
+   - DISABLE_SPARSE=1 DPDK_SHARED=1 OPTS="--enable-shared"
+   - DISABLE_SPARSE=1 TESTSUITE=1 DPDK=1
+   - DISABLE_SPARSE=1 OPTS="--disable-ssl"
+   
 matrix:
-  include:
-    - os: linux
-      arch: arm64
-      compiler: gcc
-      env:  DISABLE_SPARSE=1 DPDK_SHARED=1
+    include:
+      - os: osx
+        compiler: clang
+        env: OPTS="--disable-ssl"
+
 script: ./.travis/${TRAVIS_OS_NAME}-build.sh $OPTS
 
 notifications:
