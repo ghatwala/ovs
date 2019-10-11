@@ -119,7 +119,8 @@ function install_dpdk()
 function configure_ovs()
 {
     ./boot.sh
-    ./configure CFLAGS="${CFLAGS_FOR_OVS}" $* || { cat config.log; exit 1; }
+    # Disregard use uninitialized errors until it has been fixed
+    ./configure CFLAGS="${CFLAGS_FOR_OVS}" -Wno-maybe-unitialized $* || { cat config.log; exit 1; }
 }
 
 function build_ovs()
