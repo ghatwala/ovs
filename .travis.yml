@@ -26,7 +26,6 @@ addons:
       - libunwind-dev
       - python-pip
       - python-setuptools
-      - wheel
       - libtool
 
 before_install: ./.travis/${TRAVIS_OS_NAME}-prepare.sh

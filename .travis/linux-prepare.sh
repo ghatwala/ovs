@@ -13,6 +13,7 @@ make -j4 HAVE_LLVM= install
 cd ..
 
 pip install --disable-pip-version-check --user six flake8 hacking pyOpenSSL
+wheel
 pip install --user --upgrade docutils
 
 if [ "$M32" ]; then
