@@ -12,14 +12,21 @@ cd sparse
 make -j4 HAVE_LLVM= install
 cd ..
 
+if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
+    # Install dependent packages only for x86-64 architecture
+    sudo apt-get install \
+    -y --no-install-suggests --no-install-recommends \
+    gcc-multilib
+    if [ "$M32" ]; then
+        # 32-bit and 64-bit libunwind can not be installed at the same time.
+        # This will remove the 64-bit libunwind and install 32-bit version.
+        sudo apt-get install -y libunwind-dev:i386 libunbound-dev:i386
+    fi
+
+fi
+
 pip install --disable-pip-version-check --user six flake8 hacking
 pip install --user --upgrade docutils
-
-if [ "$M32" ]; then
-    # 32-bit and 64-bit libunwind can not be installed at the same time.
-    # This will remove the 64-bit libunwind and install 32-bit version.
-    sudo apt-get install -y libunwind-dev:i386
-fi
 
 # IPv6 is supported by kernel but disabled in TravisCI images:
 #   https://github.com/travis-ci/travis-ci/issues/8891
