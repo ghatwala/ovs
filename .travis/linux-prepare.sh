@@ -17,10 +17,22 @@ if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
     sudo apt-get install \
     -y --no-install-suggests --no-install-recommends \
     gcc-multilib libunbound-dev:i386
+elif [ "$TRAVIS_ARCH" == "aarch64" ]; then
+    sudo apt-get install \
+    -y --no-install-suggests --no-install-recommends \
+    python-pip python3-pip \
+    python-setuptools python3-setuptools \
+    python-dev python3-dev \
+    libtool
 fi
 
 pip install --disable-pip-version-check --user six flake8 hacking
 pip install --user --upgrade docutils
+
+if [ "$TRAVIS_ARCH" == "aarch64" ]; then
+    pip install --disable-pip-version-check --user pyOpenSSL
+    pip3 install --disable-pip-version-check --user pyOpenSSL
+fi
 
 if [ "$M32" ]; then
     # 32-bit and 64-bit libunwind can not be installed at the same time.

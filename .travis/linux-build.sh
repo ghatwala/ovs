@@ -89,6 +89,8 @@ function install_dpdk()
 
     if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
         TARGET="x86_64-native-linuxapp-gcc"
+    elif [ "$TRAVIS_ARCH" == "aarch64" ]; then
+        TARGET="arm64-armv8a-linuxapp-gcc"
     fi
 
     if [ "${DPDK_VER##refs/*/}" != "${DPDK_VER}" ]; then
@@ -182,7 +184,10 @@ elif [ "$M32" ]; then
     # difference on 'configure' and 'make' stages.
     export CC="$CC -m32"
 else
-    OPTS="--enable-sparse"
+    if [ "$TRAVIS_ARCH" != "aarch64" ]; then
+         OPTS="--enable-sparse"
+    fi
+    
     if [ "$AFXDP" ]; then
         # netdev-afxdp uses memset for 64M for umem initialization.
         SPARSE_FLAGS="${SPARSE_FLAGS} -Wno-memcpy-max-count"
