@@ -12,6 +12,13 @@ cd sparse
 make -j4 HAVE_LLVM= install
 cd ..
 
+if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
+    # Install dependent packages only for x86-64 architecture
+    sudo apt-get install \
+    -y --no-install-suggests --no-install-recommends \
+    gcc-multilib libunbound-dev:i386
+fi
+
 pip install --disable-pip-version-check --user six flake8 hacking
 pip install --user --upgrade docutils
 
