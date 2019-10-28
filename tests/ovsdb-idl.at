@@ -17,16 +17,37 @@ ovsdb_start_idltest () {
 # Creates a database using SCHEMA (default: idltest.ovsschema) and
 # starts a database cluster listening on punix:socket and REMOTE (if
 # specified).
-ovsdb_cluster_start_idltest () {
+db_cluster_start_idltest () {
    local n=$1
-   ovsdb-tool create-cluster s1.db $abs_srcdir/idltest.ovsschema unix:s1.raft || return $?
-   cid=`ovsdb-tool db-cid s1.db`
+   databases="s1.db"
+   ovsdb-tool create-cluster $databases $abs_srcdir/idltest.ovsschema
+unix:s1.raft || return $?
+   cid=`ovsdb-tool db-cid $databases`
    schema_name=`ovsdb-tool schema-name $abs_srcdir/idltest.ovsschema`
    for i in `seq 2 $n`; do
-     ovsdb-tool join-cluster s$i.db $schema_name unix:s$i.raft unix:s1.raft || return $?
+     ovsdb-tool join-cluster s$i.db $schema_name unix:s$i.raft unix:s1.raft
+|| return $?
+     databases="$databases s$i.db"
    done
    for i in `seq $n`; do
-     ovsdb-server -vraft -vconsole:warn --detach --no-chdir --log-file=s$i.log --pidfile=s$i.pid --unixctl=s$i --remote=punix:s$i.ovsdb ${2:+--remote=$2} s$i.db || return $?
+     ovsdb-server -vraft -vconsole:warn --detach --no-chdir
+--log-file=s$i.log --pidfile=s$i.pid --unixctl=s$i --remote=punix:s$i.ovsdb
+${2:+--remote=$2} s$i.db || return $?
+   done
+   for i in `seq $n`; do
+     port=`cat s$i.log|grep socket_util|awk '{print $5}'`
+     ovsdb-client wait "tcp:127.0.0.1:$port" _Server connected -vraft
+-vconsole:warn --timeout 1 || return $?
+   done
+   begin_time=`date +%s`
+   ovsdb-tool check-cluster $databases|grep -q -E ^s
+   while [[ $? == 0 ]]; do
+     current_time=`date +%s`
+     duration=`expr $current_time - $begin_time`
+     if [[ "$duration" -ge 5 ]]; then
+       return
+     fi
+     ovsdb-tool check-cluster $databases|grep -q -E ^s
    done
    on_exit 'kill `cat s*.pid`'
 }
