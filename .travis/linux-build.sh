@@ -6,7 +6,7 @@ set -x
 CFLAGS_FOR_OVS="-g -O2"
 SPARSE_FLAGS=""
 EXTRA_OPTS="--enable-Werror"
-TARGET="x86_64-native-linuxapp-gcc"
+TARGET=""
 
 function install_kernel()
 {
@@ -86,6 +86,10 @@ function install_dpdk()
 {
     local DPDK_VER=$1
     local VERSION_FILE="dpdk-dir/travis-dpdk-cache-version"
+
+    if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
+        TARGET="x86_64-native-linuxapp-gcc"
+    fi
 
     if [ "${DPDK_VER##refs/*/}" != "${DPDK_VER}" ]; then
         # Avoid using cache for git tree build.
