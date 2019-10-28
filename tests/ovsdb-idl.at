@@ -45,7 +45,8 @@ ovsdb_cluster_start_idltest () {
      current_time=`date +%s`
      duration=`expr $current_time - $begin_time`
      if [[ "$duration" -ge 5 ]]; then
-       return
+        echo "Cluster creation failed after 5 seconds"
+        return -1
      fi
      ovsdb-tool check-cluster $databases|grep -q -E ^s
    done
