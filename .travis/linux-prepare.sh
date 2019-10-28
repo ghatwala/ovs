@@ -22,11 +22,22 @@ if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
         # This will remove the 64-bit libunwind and install 32-bit version.
         sudo apt-get install -y libunwind-dev:i386 libunbound-dev:i386
     fi
-
+elif [ "$TRAVIS_ARCH" == "aarch64" ]; then
+    sudo apt-get install \
+    -y --no-install-suggests --no-install-recommends \
+    python-pip python3-pip \
+    python-setuptools python3-setuptools \
+    python-dev python3-dev \
+    libtool
 fi
 
 pip install --disable-pip-version-check --user six flake8 hacking
 pip install --user --upgrade docutils
+
+if [ "$TRAVIS_ARCH" == "aarch64" ]; then
+    pip install --disable-pip-version-check --user pyOpenSSL
+    pip3 install --disable-pip-version-check --user pyOpenSSL
+fi
 
 # IPv6 is supported by kernel but disabled in TravisCI images:
 #   https://github.com/travis-ci/travis-ci/issues/8891
