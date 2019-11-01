@@ -85,38 +85,44 @@ function install_kernel()
 function install_dpdk()
 {
     local DPDK_VER=$1
-    local VERSION_FILE="dpdk-dir/travis-dpdk-cache-version"
 
-    if [[ "$TRAVIS_ARCH" == "amd64" ]] || [[ -z "$TRAVIS_ARCH" ]]; then
+    if [ -z "$TARGET" ] && [ -z "$TRAVIS_ARCH" ]; then
+        TARGET="x86_64-native-linuxapp-gcc"
+    elif [ -z "$TARGET" ] && [ "$TRAVIS_ARCH" == "amd64" ]; then
         TARGET="x86_64-native-linuxapp-gcc"
     elif [ "$TRAVIS_ARCH" == "aarch64" ]; then
         TARGET="arm64-armv8a-linuxapp-gcc"
     fi
 
+    local DPDK_CACHE="${TARGET}-cache"
+    local VERSION_FILE="dpdk-dir/${DPDK_CACHE}/travis-dpdk-cache-version"
+    mkdir -p dpdk-dir/${DPDK_CACHE}
     if [ "${DPDK_VER##refs/*/}" != "${DPDK_VER}" ]; then
         # Avoid using cache for git tree build.
-        rm -rf dpdk-dir
+        rm -rf dpdk-dir/${DPDK_CACHE}
 
         DPDK_GIT=${DPDK_GIT:-https://dpdk.org/git/dpdk}
         git clone --single-branch $DPDK_GIT dpdk-dir -b "${DPDK_VER##refs/*/}"
-        pushd dpdk-dir
+        pushd dpdk-dir/${DPDK_CACHE}
         git log -1 --oneline
     else
         if [ -f "${VERSION_FILE}" ]; then
             VER=$(cat ${VERSION_FILE})
             if [ "${VER}" = "${DPDK_VER}" ]; then
-                EXTRA_OPTS="${EXTRA_OPTS} --with-dpdk=$(pwd)/dpdk-dir/build"
-                echo "Found cached DPDK ${VER} build in $(pwd)/dpdk-dir"
+                #EXTRA_OPTS="${EXTRA_OPTS} --with-dpdk=$(pwd)/dpdk-dir/build"
+                EXTRA_OPTS="${EXTRA_OPTS} --with-dpdk=$(pwd)/dpdk-dir/${DPDK_CACHE}/build"
+                echo "Found cached DPDK ${VER} build in $(pwd)/dpdk-dir/${DPDK_CACHE}/build"
+                ls $(pwd)/dpdk-dir/${DPDK_CACHE}/*
                 return
             fi
         fi
         # No cache or version mismatch.
-        rm -rf dpdk-dir
+        rm -rf dpdk-dir/${DPDK_CACHE}
         wget https://fast.dpdk.org/rel/dpdk-$1.tar.xz
         tar xvf dpdk-$1.tar.xz > /dev/null
         DIR_NAME=$(tar -tf dpdk-$1.tar.xz | head -1 | cut -f1 -d"/")
-        mv ${DIR_NAME} dpdk-dir
-        pushd dpdk-dir
+        mv ${DIR_NAME} dpdk-dir/${DPDK_CACHE}
+        pushd dpdk-dir/${DPDK_CACHE}
     fi
 
     make config CC=gcc T=$TARGET
@@ -130,11 +136,14 @@ function install_dpdk()
     sed -i '/CONFIG_RTE_EAL_IGB_UIO=y/s/=y/=n/' build/.config
     sed -i '/CONFIG_RTE_KNI_KMOD=y/s/=y/=n/' build/.config
 
-    make -j4 CC=gcc EXTRA_CFLAGS='-fPIC'
+    make -j4 CC=gcc EXTRA_CFLAGS='-fPIC' 
+    echo "The installation directory is $(pwd)/build"
     EXTRA_OPTS="$EXTRA_OPTS --with-dpdk=$(pwd)/build"
-    echo "Installed DPDK source in $(pwd)"
+    echo "Installed DPDK source in $(pwd)/build"
+    ls $(pwd)/build
     popd
     echo "${DPDK_VER}" > ${VERSION_FILE}
+    ls dpdk-dir/${DPDK_CACHE}
 }
 
 function configure_ovs()
@@ -184,7 +193,7 @@ elif [ "$M32" ]; then
     # difference on 'configure' and 'make' stages.
     export CC="$CC -m32"
 else
-    if [ "$TRAVIS_ARCH" != "aarch64" ]; then
+    if [ "$TRAVIS_ARCH" != "aarch64" ] && [ $TARGET != "arm64-armv8a-linuxapp-gcc" ]; then
          OPTS="--enable-sparse"
     fi
     
