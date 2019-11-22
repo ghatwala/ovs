@@ -6,7 +6,7 @@ set -x
 CFLAGS_FOR_OVS="-g -O2"
 SPARSE_FLAGS=""
 EXTRA_OPTS="--enable-Werror"
-TARGET="x86_64-native-linuxapp-gcc"
+TARGET=""
 
 function install_kernel()
 {
@@ -192,9 +192,7 @@ elif [ "$M32" ]; then
     # difference on 'configure' and 'make' stages.
     export CC="$CC -m32"
 else
-    if [ "$TRAVIS_ARCH" != "aarch64" ]; then
-        OPTS="--enable-sparse"
-    fi    
+    OPTS="--enable-sparse"
     if [ "$AFXDP" ]; then
         # netdev-afxdp uses memset for 64M for umem initialization.
         SPARSE_FLAGS="${SPARSE_FLAGS} -Wno-memcpy-max-count"
