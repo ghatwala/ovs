@@ -6,6 +6,7 @@ os:
   - linux
 
 cache:
+  branch: md5deep-symlink
   directories:
     - dpdk-dir
 
