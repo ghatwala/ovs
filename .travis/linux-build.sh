@@ -5,10 +5,8 @@ set -x
 
 CFLAGS_FOR_OVS="-g -O2"
 SPARSE_FLAGS=""
-EXTRA_OPTS=""
-#EXTRA_OPTS="--enable-Werror"
-#TARGET="x86_64-native-linuxapp-gcc"
-TARGET="arm64-armv8a-linuxapp-gcc"
+EXTRA_OPTS="--enable-Werror"
+TARGET="x86_64-native-linuxapp-gcc"
 
 function install_kernel()
 {
@@ -88,7 +86,15 @@ function install_dpdk()
 {
     local DPDK_VER=$1
     local VERSION_FILE="dpdk-dir/travis-dpdk-cache-version"
-    
+    if [ -z "$TARGET" -a -z "$TRAVIS_ARCH" ] ||
+       [ "$TRAVIS_ARCH" == "amd64" ]; then
+        TARGET="x86_64-native-linuxapp-gcc"
+    elif [ "$TRAVIS_ARCH" == "aarch64" ]; then
+        TARGET="arm64-armv8a-linuxapp-gcc"
+    else
+        echo "Target is unknown"
+        exit 1
+    fi    
     if [ "${DPDK_VER##refs/*/}" != "${DPDK_VER}" ]; then
         # Avoid using cache for git tree build.
         rm -rf dpdk-dir
@@ -141,7 +147,7 @@ function configure_ovs()
 {
     ./boot.sh
     # Disregard use uninitialized errors until it has been fixed
-    ./configure CFLAGS="${CFLAGS_FOR_OVS}" -Wno-maybe-unitialized $* || { cat config.log; exit 1; }
+    ./configure CFLAGS="${CFLAGS_FOR_OVS}" || { cat config.log; exit 1; }
 }
 
 function build_ovs()
@@ -195,11 +201,8 @@ elif [ "$M32" ]; then
     # difference on 'configure' and 'make' stages.
     export CC="$CC -m32"
 else
-    # Disable sparse static code checker temporarily for test cases on
-    # arm
-    if [ ! "$DISABLE_SPARSE" ]; then
+    if [ "$TRAVIS_ARCH" != "aarch64" ]; then
         OPTS="--enable-sparse"
-        CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} ${SPARSE_FLAGS}"
     fi
     if [ "$AFXDP" ]; then
         # netdev-afxdp uses memset for 64M for umem initialization.
