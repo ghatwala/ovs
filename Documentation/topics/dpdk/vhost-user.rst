@@ -25,9 +25,9 @@
 DPDK vHost User Ports
 =====================
 
-The DPDK datapath provides DPDK-backed vHost user ports as a primary way to
-interact with guests. For more information on vHost User, refer to the `QEMU
-documentation`_ on same.
+OVS userspace switching supports supports vHost user ports as a
+primary way to interact with guests.  For more information on vHost
+User, refer to the `QEMU documentation`_ on same.
 
 .. important::
 
@@ -551,7 +551,7 @@ processing packets at the required rate.
 The amount of Tx retries on a vhost-user or vhost-user-client interface can be
 shown with::
 
-  $ ovs-vsctl get Interface dpdkvhostclient0 statistics:tx_retries
+  $ ovs-vsctl get Interface dpdkvhostclient0 statistics:ovs_tx_retries
 
 vhost-user Dequeue Zero Copy (experimental)
 -------------------------------------------

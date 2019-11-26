@@ -23,7 +23,7 @@ ovsdb_check_cluster () {
 
     for txn
     do
-      AT_CHECK([ovsdb-client --timeout=30 -vjsonrpc -vconsole:off -vsyslog:off -vvlog:off --log-file transact unix:s1.ovsdb,unix:s2.ovsdb,unix:s3.ovsdb "$txn"], [0], [stdout])
+      AT_CHECK([ovsdb-client -vjsonrpc -vconsole:off -vsyslog:off -vvlog:off --log-file transact unix:s1.ovsdb,unix:s2.ovsdb,unix:s3.ovsdb "$txn"], [0], [stdout])
       cat stdout >> output
     done
     AT_CHECK_UNQUOTED([uuidfilt output], [0], [$output])
@@ -233,6 +233,55 @@ done
 OVS_WAIT_UNTIL([ovs-appctl -t "`pwd`"/s1 cluster/status $schema_name | grep "Election timer: 4000"])
 OVS_WAIT_UNTIL([ovs-appctl -t "`pwd`"/s2 cluster/status $schema_name | grep "Election timer: 4000"])
 
+# Latest timer should be restored after DB compact and restart.
+# This is to test the install_snapshot RPC.
+
+# XXX: Insert data before compact, because otherwise transaction will trigger
+# busy loop after compact.
+# poll_loop|DBG|wakeup due to 0-ms timeout at ../ovsdb/trigger.c:164 (89% CPU usage)
+AT_CHECK([ovsdb-client transact unix:s1.ovsdb '[["idltest",
+      {"op": "insert",
+       "table": "simple",
+       "row": {"i": 1}}]]'], [0], [ignore], [ignore])
+
+# Compact online
+for i in `seq $n`; do
+    AT_CHECK([ovs-appctl -t "`pwd`"/s$i ovsdb-server/compact])
+done
+
+# XXX: Insert data after compact, because otherwise vote will fail after
+# cluster restart after compact. There will be error logs like:
+# raft|ERR|internal error: deferred vote_request message completed but not ready to send because message index 9 is past last synced index 0: s2 vote_request: term=6 last_log_index=9 last_log_term=4
+AT_CHECK([ovsdb-client transact unix:s1.ovsdb '[["idltest",
+      {"op": "insert",
+       "table": "simple",
+       "row": {"i": 1}}]]'], [0], [ignore], [ignore])
+
+for i in `seq $n`; do
+    printf "\ns$i: stopping\n"
+    OVS_APP_EXIT_AND_WAIT_BY_TARGET([`pwd`/s$i], [s$i.pid])
+done
+for i in `seq $n`; do
+    AT_CHECK([ovsdb-server -v -vconsole:off -vsyslog:off --detach --no-chdir --log-file=s$i.log --pidfile=s$i.pid --unixctl=s$i --remote=punix:s$i.ovsdb s$i.db])
+done
+for i in `seq $n`; do
+    OVS_WAIT_UNTIL([ovs-appctl -t "`pwd`"/s$i cluster/status $schema_name | grep "Election timer: 4000"])
+done
+
+# Wait until cluster is ready
+for i in `seq $n`; do
+    OVS_WAIT_WHILE([ovs-appctl -t "`pwd`"/s$i cluster/status $schema_name | grep "Leader: unknown"])
+done
+
+# Newly joined member should use latest timer value
+AT_CHECK([ovsdb-tool join-cluster s4.db $schema_name unix:s4.raft unix:s1.raft])
+AT_CHECK([ovsdb-server -v -vconsole:off -vsyslog:off --detach --no-chdir --log-file=s4.log --pidfile=s4.pid --unixctl=s4 --remote=punix:s4.ovsdb s4.db])
+OVS_WAIT_UNTIL([ovs-appctl -t "`pwd`"/s4 cluster/status $schema_name | grep "Election timer: 4000"])
+# for i in `seq 10`; do
+#     ovs-appctl -t "`pwd`"/s4 cluster/status $schema_name
+#     sleep 1
+# done
+
 AT_CLEANUP
 
 
@@ -296,7 +345,7 @@ ovsdb|WARN|schema: changed 30 columns in 'Open_vSwitch' database from ephemeral 
         AT_CHECK([ovs-appctl -t "`pwd`"/s$delay_election_node cluster/failure-test delay-election], [0], [ignore])
     fi
     AT_CHECK([ovs-appctl -t "`pwd`"/s$crash_node cluster/failure-test $crash_command], [0], [ignore])
-    AT_CHECK([ovs-vsctl -v --timeout=10 --db="$db" --no-leader-only --no-shuffle-remotes --no-wait create QoS type=x], [0], [ignore], [ignore])
+    AT_CHECK([ovs-vsctl -v --db="$db" --no-leader-only --no-shuffle-remotes --no-wait create QoS type=x], [0], [ignore], [ignore])
 
     # Make sure that the node really crashed.
     AT_CHECK([ls s$crash_node.ovsdb], [2], [ignore], [ignore])
@@ -442,7 +491,7 @@ ovsdb|WARN|schema: changed 30 columns in 'Open_vSwitch' database from ephemeral 
     remove_server() {
         local i=$1
         printf "\ns$i: removing from cluster\n"
-        AT_CHECK([ovs-appctl --timeout=30 -t "`pwd`"/s$i cluster/leave Open_vSwitch])
+        AT_CHECK([ovs-appctl -t "`pwd`"/s$i cluster/leave Open_vSwitch])
         printf "\ns$i: waiting for removal to complete\n"
         AT_CHECK([ovsdb_client_wait --log-file=remove$i.log unix:s$i.ovsdb $schema removed])
         stop_server $i
@@ -543,7 +592,7 @@ ovsdb|WARN|schema: changed 30 columns in 'Open_vSwitch' database from ephemeral 
             done
         done
     done | sort > expout
-    AT_CHECK([ovs-vsctl --timeout=30 --db="$db" --no-wait --log-file=finalize.log -vtimeval:off -vfile -vsyslog:off --bare get Open_vSwitch . external-ids | tr ',' '\n' | sed 's/[[{}"" ]]//g' | sort], [0], [expout])
+    AT_CHECK([ovs-vsctl --db="$db" --no-wait --log-file=finalize.log -vtimeval:off -vfile -vsyslog:off --bare get Open_vSwitch . external-ids | tr ',' '\n' | sed 's/[[{}"" ]]//g' | sort], [0], [expout])
 
     for i in `seq $n`; do
         if test $i != $victim || test $(cat phase) != 1; then

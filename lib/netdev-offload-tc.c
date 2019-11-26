@@ -600,6 +600,7 @@ parse_tc_flower_to_match(struct tc_flower *flower,
     if (flower->tunnel) {
         if (flower->mask.tunnel.id) {
             match_set_tun_id(match, flower->key.tunnel.id);
+            match->flow.tunnel.flags |= FLOW_TNL_F_KEY;
         }
         if (flower->key.tunnel.ipv4.ipv4_dst) {
             match_set_tun_src(match, flower->key.tunnel.ipv4.ipv4_src);
@@ -1143,7 +1144,7 @@ static int
 netdev_tc_flow_put(struct netdev *netdev, struct match *match,
                    struct nlattr *actions, size_t actions_len,
                    const ovs_u128 *ufid, struct offload_info *info,
-                   struct dpif_flow_stats *stats OVS_UNUSED)
+                   struct dpif_flow_stats *stats)
 {
     static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(5, 20);
     enum tc_qdisc_hook hook = get_tc_qdisc_hook(netdev);
@@ -1360,8 +1361,8 @@ netdev_tc_flow_put(struct netdev *netdev, struct match *match,
     }
 
     NL_ATTR_FOR_EACH(nla, left, actions, actions_len) {
-        if (flower.action_count >= TCA_ACT_MAX_PRIO) {
-            VLOG_DBG_RL(&rl, "Can only support %d actions", flower.action_count);
+        if (flower.action_count >= TCA_ACT_MAX_NUM) {
+            VLOG_DBG_RL(&rl, "Can only support %d actions", TCA_ACT_MAX_NUM);
             return EOPNOTSUPP;
         }
         action = &flower.actions[flower.action_count];
@@ -1448,6 +1449,9 @@ netdev_tc_flow_put(struct netdev *netdev, struct match *match,
 
     err = tc_replace_flower(ifindex, prio, handle, &flower, block_id, hook);
     if (!err) {
+        if (stats) {
+            memset(stats, 0, sizeof *stats);
+        }
         add_ufid_tc_mapping(ufid, flower.prio, flower.handle, netdev, ifindex);
     }
 

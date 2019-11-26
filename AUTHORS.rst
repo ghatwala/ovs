@@ -34,6 +34,7 @@ Name                               Email
 Aaron Conole                       aconole@redhat.com
 Aaron Rosen                        arosen@clemson.edu
 Alan Pevec                         alan.pevec@redhat.com
+Alessandro Pilotti                 apilotti@cloudbasesolutions.com
 Alexander Duyck                    alexander.h.duyck@redhat.com
 Alexandru Copot                    alex.mihai.c@gmail.com
 Alexei Starovoitov                 ast@plumgrid.com
@@ -153,6 +154,7 @@ Geoffrey Wossum                    gwossum@acm.org
 Gianluca Merlo                     gianluca.merlo@gmail.com
 Giuseppe Lettieri                  g.lettieri@iet.unipi.it
 Glen Gibb                          grg@stanford.edu
+Gowrishankar Muthukrishnan         gmuthukr@redhat.com
 Guoshuai Li                        ligs@dtdream.com
 Guolin Yang                        gyang@vmware.com
 Guru Chaitanya Perakam             gperakam@Brocade.com
@@ -369,6 +371,7 @@ Timo Puha                          timox.puha@intel.com
 Timothy Redaelli                   tredaelli@redhat.com
 Todd Deshane                       deshantm@gmail.com
 Tom Everman                        teverman@google.com
+Tomasz Konieczny                   tomaszx.konieczny@intel.com
 Toms Atteka                        cpp.code.lv@gmail.com
 Torgny Lindberg                    torgny.lindberg@ericsson.com
 Tsvi Slonim                        tsvi@toroki.com
@@ -381,6 +384,7 @@ Venkata Anil Kommaddi              vkommadi@redhat.com
 Vishal Deep Ajmera                 vishal.deep.ajmera@ericsson.com
 Vivien Bernet-Rollande             vbr@soprive.net
 wangqianyu                         wang.qianyu@zte.com.cn
+Wang Li                            wangli39@baidu.com
 Wang Sheng-Hui                     shhuiw@gmail.com
 Wang Zhike                         wangzhike@jd.com
 Wei Li                             liw@dtdream.com

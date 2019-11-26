@@ -954,6 +954,18 @@ ofproto_get_flow_restore_wait(void)
     return flow_restore_wait;
 }
 
+/* Retrieve datapath capabilities. */
+void
+ofproto_get_datapath_cap(const char *datapath_type, struct smap *dp_cap)
+{
+    datapath_type = ofproto_normalize_type(datapath_type);
+    const struct ofproto_class *class = ofproto_class_find__(datapath_type);
+
+    if (class->get_datapath_cap) {
+        class->get_datapath_cap(datapath_type, dp_cap);
+    }
+}
+
 /* Connection tracking configuration. */
 void
 ofproto_ct_set_zone_timeout_policy(const char *datapath_type, uint16_t zone_id,
@@ -2556,6 +2568,9 @@ ofproto_port_unregister(struct ofproto *ofproto, ofp_port_t ofp_port)
 {
     struct ofport *port = ofproto_get_port(ofproto, ofp_port);
     if (port) {
+        if (port->ofproto->ofproto_class->set_lldp) {
+            port->ofproto->ofproto_class->set_lldp(port, NULL);
+        }
         if (port->ofproto->ofproto_class->set_stp_port) {
             port->ofproto->ofproto_class->set_stp_port(port, NULL);
         }

@@ -4468,11 +4468,11 @@ xlate_group_bucket(struct xlate_ctx *ctx, struct ofputil_bucket *bucket,
      *
      * Note that group buckets are action sets, hence they cannot modify the
      * main action set.  Also any stack actions are ignored when executing an
-     * action set, so group buckets cannot change the stack either.
+     * action set, so group buckets cannot directly change the stack either.
      * However, we do allow resubmit actions in group buckets, which could
-     * break the above assumptions.  It is up to the controller to not mess up
-     * with the action_set and stack in the tables resubmitted to from
-     * group buckets. */
+     * recursively execute actions that do modify the action set or change the
+     * stack.  The controller must be careful about what it does to the
+     * action_set and stack in the tables resubmitted to from group buckets. */
     ctx->xin->flow = old_flow;
 
     /* The group bucket popping MPLS should have no effect after bucket
@@ -7342,6 +7342,26 @@ xlate_wc_finish(struct xlate_ctx *ctx)
     if (ctx->xin->flow.nw_frag & FLOW_NW_FRAG_LATER) {
         ctx->wc->masks.tp_src = 0;
         ctx->wc->masks.tp_dst = 0;
+    }
+
+    /* Clear flow wildcard bits for fields which are not present
+     * in the original packet header. These wildcards may get set
+     * due to push/set_field actions. This results into frequent
+     * invalidation of datapath flows by revalidator thread. */
+
+    /* Clear mpls label wc bits if original packet is non-mpls. */
+    if (!eth_type_mpls(ctx->xin->upcall_flow->dl_type)) {
+        for (i = 0; i < FLOW_MAX_MPLS_LABELS; i++) {
+            ctx->wc->masks.mpls_lse[i] = 0;
+        }
+    }
+    /* Clear vlan header wc bits if original packet does not have
+     * vlan header. */
+    for (i = 0; i < FLOW_MAX_VLAN_HEADERS; i++) {
+        if (!eth_type_vlan(ctx->xin->upcall_flow->vlans[i].tpid)) {
+            ctx->wc->masks.vlans[i].tpid = 0;
+            ctx->wc->masks.vlans[i].tci = 0;
+        }
     }
 }
 

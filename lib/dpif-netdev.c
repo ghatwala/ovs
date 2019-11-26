@@ -4572,6 +4572,10 @@ rxq_scheduling(struct dp_netdev *dp, bool pinned) OVS_REQUIRES(dp->port_mutex)
                 } else {
                     q->pmd = pmd;
                     pmd->isolated = true;
+                    VLOG_INFO("Core %d on numa node %d assigned port \'%s\' "
+                              "rx queue %d.", pmd->core_id, pmd->numa_id,
+                              netdev_rxq_get_name(q->rx),
+                              netdev_rxq_get_queue_id(q->rx));
                     dp_netdev_pmd_unref(pmd);
                 }
             } else if (!pinned && q->core_id == OVS_CORE_UNSPEC) {
@@ -5646,6 +5650,14 @@ dp_netdev_run_meter(struct dp_netdev *dp, struct dp_packet_batch *packets_,
     /* All packets will hit the meter at the same time. */
     long_delta_t = now / 1000 - meter->used / 1000; /* msec */
 
+    if (long_delta_t < 0) {
+        /* This condition means that we have several threads fighting for a
+           meter lock, and the one who received the packets a bit later wins.
+           Assuming that all racing threads received packets at the same time
+           to avoid overflow. */
+        long_delta_t = 0;
+    }
+
     /* Make sure delta_t will not be too large, so that bucket will not
      * wrap around below. */
     delta_t = (long_delta_t > (long long int)meter->max_delta_t)
@@ -6288,7 +6300,6 @@ dpif_netdev_packet_get_rss_hash(struct dp_packet *packet,
     recirc_depth = *recirc_depth_get_unsafe();
     if (OVS_UNLIKELY(recirc_depth)) {
         hash = hash_finish(hash, recirc_depth);
-        dp_packet_set_rss_hash(packet, hash);
     }
     return hash;
 }

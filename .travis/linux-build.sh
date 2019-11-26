@@ -40,7 +40,7 @@ function install_kernel()
     wget ${url} || wget ${url} || wget ${url/cdn/www}
 
     tar xvf linux-${version}.tar.xz > /dev/null
-    cd linux-${version}
+    pushd linux-${version}
     make allmodconfig
 
     # Cannot use CONFIG_KCOV: -fsanitize-coverage=trace-pc is not supported by compiler
@@ -62,9 +62,26 @@ function install_kernel()
         make net/bridge/
     fi
 
-    EXTRA_OPTS="${EXTRA_OPTS} --with-linux=$(pwd)"
-    echo "Installed kernel source in $(pwd)"
-    cd ..
+    if [ "$AFXDP" ]; then
+        sudo make headers_install INSTALL_HDR_PATH=/usr
+        pushd tools/lib/bpf/
+        # Bulding with gcc because there are some issues in make files
+        # that breaks building libbpf with clang on Travis.
+        CC=gcc sudo make install
+        CC=gcc sudo make install_headers
+        sudo ldconfig
+        popd
+        # The Linux kernel defines __always_inline in stddef.h (283d7573), and
+        # sys/cdefs.h tries to re-define it.  Older libc-dev package in xenial
+        # doesn't have a fix for this issue.  Applying it manually.
+        sudo sed -i '/^# define __always_inline .*/i # undef __always_inline' \
+                    /usr/include/x86_64-linux-gnu/sys/cdefs.h || true
+        EXTRA_OPTS="${EXTRA_OPTS} --enable-afxdp"
+    else
+        EXTRA_OPTS="${EXTRA_OPTS} --with-linux=$(pwd)"
+        echo "Installed kernel source in $(pwd)"
+    fi
+    popd
 }
 
 function install_dpdk()
@@ -109,6 +126,10 @@ function install_dpdk()
     sed -i '/CONFIG_RTE_EAL_IGB_UIO=y/s/=y/=n/' build/.config
     sed -i '/CONFIG_RTE_KNI_KMOD=y/s/=y/=n/' build/.config
 
+    # Enable pdump support in DPDK.
+    sed -i '/CONFIG_RTE_LIBRTE_PMD_PCAP=n/s/=n/=y/' build/.config
+    sed -i '/CONFIG_RTE_LIBRTE_PDUMP=n/s/=n/=y/' build/.config
+
     make -j4 CC=gcc EXTRA_CFLAGS='-fPIC'
     EXTRA_OPTS="$EXTRA_OPTS --with-dpdk=$(pwd)/build"
     echo "Installed DPDK source in $(pwd)"
@@ -130,8 +151,9 @@ function build_ovs()
     configure_ovs $OPTS
     make selinux-policy
 
-    # Only build datapath if we are testing kernel w/o running testsuite
-    if [ "${KERNEL}" ]; then
+    # Only build datapath if we are testing kernel w/o running testsuite and
+    # AF_XDP support.
+    if [ "${KERNEL}" ] && ! [ "$AFXDP" ]; then
         pushd datapath
         make -j4
         popd
@@ -153,6 +175,8 @@ if [ "$DPDK" ] || [ "$DPDK_SHARED" ]; then
         DPDK_VER="18.11.2"
     fi
     install_dpdk $DPDK_VER
+    # Enable pdump support in OVS.
+    EXTRA_OPTS="${EXTRA_OPTS} --enable-dpdk-pdump"
     if [ "$CC" = "clang" ]; then
         # Disregard cast alignment errors until DPDK is fixed
         CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} -Wno-cast-align"
@@ -177,6 +201,11 @@ else
         OPTS="--enable-sparse"
         CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} ${SPARSE_FLAGS}"
     fi
+    if [ "$AFXDP" ]; then
+        # netdev-afxdp uses memset for 64M for umem initialization.
+        SPARSE_FLAGS="${SPARSE_FLAGS} -Wno-memcpy-max-count"
+    fi
+    CFLAGS_FOR_OVS="${CFLAGS_FOR_OVS} ${SPARSE_FLAGS}"
 fi
 
 save_OPTS="${OPTS} $*"

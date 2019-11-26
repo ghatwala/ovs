@@ -174,16 +174,30 @@ AC_DEFUN([OVS_CHECK_LINUX], [
   AM_CONDITIONAL(LINUX_ENABLED, test -n "$KBUILD")
 ])
 
+dnl OVS_CHECK_LINUX_NETLINK
+dnl
+dnl Configure Linux netlink compat.
+AC_DEFUN([OVS_CHECK_LINUX_NETLINK], [
+  AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([#include <linux/netlink.h>], [
+        struct nla_bitfield32 x =  { 0 };
+    ])],
+    [AC_DEFINE([HAVE_NLA_BITFIELD32], [1],
+    [Define to 1 if struct nla_bitfield32 is available.])])
+])
+
 dnl OVS_CHECK_LINUX_TC
 dnl
 dnl Configure Linux tc compat.
 AC_DEFUN([OVS_CHECK_LINUX_TC], [
   AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([#include <linux/pkt_cls.h>], [
-        int x = TCA_FLOWER_KEY_ENC_IP_TTL_MASK;
+        int x = TCA_ACT_FLAGS;
     ])],
-    [AC_DEFINE([HAVE_TCA_FLOWER_KEY_ENC_IP_TTL_MASK], [1],
-               [Define to 1 if TCA_FLOWER_KEY_ENC_IP_TTL_MASK is available.])])
+    [AC_DEFINE([HAVE_TCA_ACT_FLAGS], [1],
+               [Define to 1 if TCA_ACT_FLAGS is available.])])
+
+  AC_CHECK_MEMBERS([struct tcf_t.firstuse], [], [], [#include <linux/pkt_cls.h>])
 
   AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([#include <linux/tc_act/tc_vlan.h>], [
@@ -276,6 +290,11 @@ AC_DEFUN([OVS_CHECK_LINUX_AF_XDP], [
               [Define to 1 if AF_XDP support is available and enabled.])
     LIBBPF_LDADD=" -lbpf -lelf"
     AC_SUBST([LIBBPF_LDADD])
+
+    AC_CHECK_DECL([xsk_ring_prod__needs_wakeup], [
+      AC_DEFINE([HAVE_XDP_NEED_WAKEUP], [1],
+        [XDP need wakeup support detected in xsk.h.])
+    ], [], [[#include <bpf/xsk.h>]])
   fi
   AM_CONDITIONAL([HAVE_AF_XDP], test "$AF_XDP_ENABLE" = true)
 ])
@@ -289,7 +308,7 @@ AC_DEFUN([OVS_CHECK_DPDK], [
                               [Specify the DPDK build directory])],
               [have_dpdk=true])
 
-  AC_MSG_CHECKING([whether dpdk datapath is enabled])
+  AC_MSG_CHECKING([whether dpdk is enabled])
   if test "$have_dpdk" != true || test "$with_dpdk" = no; then
     AC_MSG_RESULT([no])
     DPDKLIB_FOUND=false
@@ -338,12 +357,24 @@ AC_DEFUN([OVS_CHECK_DPDK], [
       AC_DEFINE([VHOST_NUMA], [1], [NUMA Aware vHost support detected in DPDK.])
     ], [], [[#include <rte_config.h>]])
 
-    AC_CHECK_DECL([RTE_LIBRTE_PMD_PCAP], [
-      OVS_FIND_DEPENDENCY([pcap_dump], [pcap], [libpcap])
-      AC_CHECK_DECL([RTE_LIBRTE_PDUMP], [
-        AC_DEFINE([DPDK_PDUMP], [1], [DPDK pdump enabled in OVS.])
-      ], [], [[#include <rte_config.h>]])
-    ], [], [[#include <rte_config.h>]])
+   AC_MSG_CHECKING([whether DPDK pdump support is enabled])
+   AC_ARG_ENABLE(
+     [dpdk-pdump],
+     [AC_HELP_STRING([--enable-dpdk-pdump],
+                     [Enable DPDK pdump packet capture support])],
+     [AC_MSG_RESULT([yes])
+      AC_MSG_WARN([DPDK pdump is deprecated, consider using ovs-tcpdump instead])
+      AC_CHECK_DECL([RTE_LIBRTE_PMD_PCAP], [
+        OVS_FIND_DEPENDENCY([pcap_dump], [pcap], [libpcap])
+        AC_CHECK_DECL([RTE_LIBRTE_PDUMP], [
+          AC_DEFINE([DPDK_PDUMP], [1], [DPDK pdump enabled in OVS.])
+        ], [
+          AC_MSG_ERROR([RTE_LIBRTE_PDUMP is not defined in rte_config.h])
+        ], [[#include <rte_config.h>]])
+      ], [
+        AC_MSG_ERROR([RTE_LIBRTE_PMD_PCAP is not defined in rte_config.h])
+      ], [[#include <rte_config.h>]])],
+      [AC_MSG_RESULT([no])])
 
     AC_CHECK_DECL([RTE_LIBRTE_MLX5_PMD], [dnl found
       OVS_FIND_DEPENDENCY([mnl_attr_put], [mnl], [libmnl])
@@ -676,6 +707,7 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
   OVS_FIND_FIELD_IFELSE([$KSRC/include/linux/netfilter.h], [nf_hook_ops],
                         [owner], [OVS_DEFINE([HAVE_NF_HOOKS_OPS_OWNER])])
   OVS_GREP_IFELSE([$KSRC/include/linux/netfilter.h], [NFPROTO_INET])
+  OVS_GREP_IFELSE([$KSRC/include/linux/netfilter.h], [CONFIG_NF_NAT_NEEDED])
 
 
   OVS_FIND_FIELD_IFELSE([$KSRC/include/linux/netfilter_ipv6.h], [nf_ipv6_ops],
@@ -697,6 +729,8 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
                   [nf_ct_set])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack.h],
                   [nf_ct_is_untracked])
+  OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack.h],
+                  [nf_ct_invert_tuplepr])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_zones.h],
                   [nf_ct_zone_init])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_l3proto.h],
@@ -711,6 +745,8 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_nat.h], [nf_ct_nat_ext_add])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_nat.h], [nf_nat_alloc_null_binding])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_nat.h], [nf_nat_range2])
+  OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_nat.h], [nf_nat_packet],
+                  [OVS_DEFINE([HAVE_UPSTREAM_NF_NAT])])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_seqadj.h], [nf_ct_seq_adjust])
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_count.h], [nf_conncount_gc_list],
                   [OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_count.h],
@@ -742,6 +778,7 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
   OVS_FIND_PARAM_IFELSE([$KSRC/include/net/rtnetlink.h],
                         [rtnl_create_link], [extack],
                         [OVS_DEFINE([HAVE_RTNL_CREATE_LINK_TAKES_EXTACK])])
+  OVS_GREP_IFELSE([$KSRC/include/linux/skbuff.h], [nf_reset_ct])
 
   # Check for the proto_data_valid member in struct sk_buff.  The [^@]
   # is necessary because some versions of this header remove the
@@ -812,6 +849,7 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
   OVS_GREP_IFELSE([$KSRC/include/net/genetlink.h], [genlmsg_parse])
   OVS_GREP_IFELSE([$KSRC/include/net/genetlink.h], [genl_notify.*family],
                   [OVS_DEFINE([HAVE_GENL_NOTIFY_TAKES_FAMILY])])
+  OVS_GREP_IFELSE([$KSRC/include/net/genetlink.h], [genl_validate_flags])
   OVS_FIND_PARAM_IFELSE([$KSRC/include/net/genetlink.h],
                         [genl_notify], [net],
                         [OVS_DEFINE([HAVE_GENL_NOTIFY_TAKES_NET])])
@@ -839,6 +877,7 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
   OVS_GREP_IFELSE([$KSRC/include/net/netlink.h], [nla_put_in_addr])
   OVS_GREP_IFELSE([$KSRC/include/net/netlink.h], [nla_find_nested])
   OVS_GREP_IFELSE([$KSRC/include/net/netlink.h], [nla_is_last])
+  OVS_GREP_IFELSE([$KSRC/include/net/netlink.h], [nla_nest_start_noflag])
   OVS_GREP_IFELSE([$KSRC/include/linux/netlink.h], [void.*netlink_set_err],
                   [OVS_DEFINE([HAVE_VOID_NETLINK_SET_ERR])])
   OVS_FIND_PARAM_IFELSE([$KSRC/include/net/netlink.h],
@@ -847,8 +886,6 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
 
   OVS_GREP_IFELSE([$KSRC/include/net/sctp/checksum.h], [sctp_compute_cksum])
 
-  OVS_GREP_IFELSE([$KSRC/include/linux/if_vlan.h], [ADD_ALL_VLANS_CMD],
-                  [OVS_DEFINE([HAVE_VLAN_BUG_WORKAROUND])])
   OVS_GREP_IFELSE([$KSRC/include/linux/if_vlan.h], [vlan_insert_tag_set_proto])
   OVS_GREP_IFELSE([$KSRC/include/linux/if_vlan.h], [__vlan_insert_tag])
   OVS_GREP_IFELSE([$KSRC/include/linux/if_vlan.h], [vlan_get_protocol])
@@ -897,6 +934,10 @@ AC_DEFUN([OVS_CHECK_LINUX_COMPAT], [
   OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_helper.h],
                   [nf_conntrack_helper_put],
                   [OVS_DEFINE(HAVE_NF_CONNTRACK_HELPER_PUT)])
+  OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_helper.h],
+                  [nf_nat_helper_try_module_get])
+  OVS_GREP_IFELSE([$KSRC/include/net/netfilter/nf_conntrack_helper.h],
+                  [nf_nat_helper_put])
   OVS_GREP_IFELSE([$KSRC/include/linux/skbuff.h],[[[[:space:]]]SKB_GSO_UDP[[[:space:]]]],
                   [OVS_DEFINE([HAVE_SKB_GSO_UDP])])
   OVS_GREP_IFELSE([$KSRC/include/net/dst.h],[DST_NOCACHE],
@@ -1211,7 +1252,7 @@ AC_DEFUN([OVS_CHECK_SPARSE_TARGET],
      [x86_64], [SPARSEFLAGS=-m64 CGCCFLAGS="-target=x86_64 -target=host_os_specs"],
      [SPARSEFLAGS= CGCCFLAGS=])
 
-   dnl Get the the default defines for vector instructions from compiler to
+   dnl Get the default defines for vector instructions from compiler to
    dnl allow "sparse" correctly check the same code that will be built.
    dnl Required for checking DPDK headers.
    AC_MSG_CHECKING([vector options for cgcc])
