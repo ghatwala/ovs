@@ -22,10 +22,6 @@ addons:
       - libpcap-dev
       - python3-openssl
       - python3-sphinx
-      - libelf-dev
-      - selinux-policy-dev
-      - libunbound-dev
-      - libunwind-dev
 
 before_install: ./.travis/${TRAVIS_OS_NAME}-prepare.sh
 
