@@ -47,18 +47,6 @@ env:
 
 matrix:
     include:
-      - os: osx
-        compiler: clang
-        env: OPTS="--disable-ssl"
-      - arch: ppc64le
-        compiler: gcc
-        env: OPTS="--disable-ssl"
-      - arch: ppc64le
-        compiler: gcc
-        env: KERNEL_LIST="5.0 4.20 4.19 4.18 4.17 4.16"
-      - arch: ppc64le
-        compiler: gcc
-        env: KERNEL_LIST="4.15 4.14 4.9 4.4 3.16"
       - arch: ppc64le
         compiler: gcc
         env: DPDK=1 OPTS="--enable-shared"
@@ -66,6 +54,15 @@ matrix:
         compiler: gcc
         env: DPDK_SHARED=1
       - arch: ppc64le
+        compiler: gcc
+        env: DPDK_SHARED=1 OPTS="--enable-shared"
+      - arch: s390x
+        compiler: gcc
+        env: DPDK=1 OPTS="--enable-shared"
+      - arch: s390x
+        compiler: gcc
+        env: DPDK_SHARED=1
+      - arch: s390x
         compiler: gcc
         env: DPDK_SHARED=1 OPTS="--enable-shared"
 
